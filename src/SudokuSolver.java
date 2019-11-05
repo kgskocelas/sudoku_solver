@@ -6,16 +6,13 @@ import java.util.List;
 
 
 /************************************************************************************
- * Solves a sudoku board.
+ * Solves for a valid sudoku board of the specified dimensions.
  ***********************************************************************************/
 public class SudokuSolver {
 
 
     /********************************************************************************
-     * Evolve the population over the set number of generations.
-     * Outputs final stats.
-     *
-     * @param maxNumberGenerations - max number of generations to evolve nets
+     * Evolves the population over the set number of generations & outputs results.
      *******************************************************************************/
     public static void evolveGenomes(int N, int maxNumberGenerations, int numberOfRuns, String filename) throws Exception {
 
@@ -28,6 +25,7 @@ public class SudokuSolver {
         double sumTimeSolved = 0;
         double minTime = Double.MAX_VALUE;
         double maxTime = 0;
+        double sumFinalMutationRate = 0;
 
         for (int run = 0; run < numberOfRuns; run++) {
 
@@ -35,32 +33,45 @@ public class SudokuSolver {
 
             // reset GA
             GeneticAlgorithm genAlg = new GeneticAlgorithm(N);
+            int generationCounter = 1;
 
-            int generationCounter = 0;
+            double centenialBest = 0;
 
             // evolve population until solved
             while (generationCounter < maxNumberGenerations && genAlg.getSolutionFound() == false) {
 
+                // execute 1 epoch
                 genAlg.epoch();
 
-                Genome bestGenome = genAlg.getFittestGenome();
-                double best = bestGenome.getFitnessScore();
-                bestFitness[generationCounter] += best;
+                // results
+                double best = genAlg.getFittestGenome().getFitnessScore();
 
+                bestFitness[generationCounter] += best;
                 System.out.println("generation " + generationCounter + " best fitness: " + best);
 
-                if (genAlg.getSolutionFound() == false) generationCounter++;
-            }
+                if (generationCounter % 100 == 0) {
 
+                    //compare to last centenialBest
+                    if (centenialBest == best) {
+                        genAlg.incrementMutationRate();
+                    }
+                    else {
+                        centenialBest = best;
+                    }
+                }
+
+                if (genAlg.getSolutionFound() == false) generationCounter++;
+
+            }
 
             long endTime = System.nanoTime();
 
-            // finish filling out results
-            for (int j = generationCounter; j < maxNumberGenerations; j++) {
+            // finish filling out results with 1's if ended before max # generations
+            for (int j = generationCounter + 1; j < maxNumberGenerations; j++) {
                 bestFitness[j] += 1.0;
             }
 
-            // reporting
+            // update reporting values
             long timeSolved = (endTime - startTime);
             sumTimeSolved += timeSolved;
             if (timeSolved < minTime) minTime = timeSolved;
@@ -70,15 +81,20 @@ public class SudokuSolver {
             if (generationCounter < minGen) minGen = generationCounter;
             if (generationCounter > maxGen) maxGen = generationCounter;
 
-            System.out.println("Best genotype fitness: " + genAlg.getFittestGenome().getFitnessScore());
+            sumFinalMutationRate += genAlg.getMutationRate();
 
+            // output results
+            System.out.println("final mutation rate: " + genAlg.getMutationRate());
+            System.out.println("Best genotype fitness: " + genAlg.getFittestGenome().getFitnessScore());
             System.out.println("Best solution genotype: ");
             genAlg.getFittestGenome().printGenotype(N);
 
         }
 
+        // output reporting values
         double avgGensToSolve = sumGenSolved / numberOfRuns;
         double avgTimeToSolve = sumTimeSolved / numberOfRuns;
+        double avgFinalMutationRate = sumFinalMutationRate / numberOfRuns;
 
         System.out.println("Avg time to solve: " + avgTimeToSolve);
         System.out.println("min time " + minTime);
@@ -86,18 +102,17 @@ public class SudokuSolver {
         System.out.println("Avg gen to solve: " + avgGensToSolve);
         System.out.println("min gen " + minGen);
         System.out.println("max gen " + maxGen);
+        System.out.println("avg final mut rate: " + avgFinalMutationRate);
 
-
+        // write results to csv file
         System.out.println("writing results to csv...");
 
         // save avg best fitness for each epoch to csv
         List<List<String>> results = new ArrayList<>();
 
-        for(int epoch = 0; epoch<maxNumberGenerations;epoch++) {
+        for(int epoch = 1; epoch<maxNumberGenerations;epoch++) {
 
             double avgBestFitness = bestFitness[epoch] / numberOfRuns;
-
-            int readableEpoch = epoch + 1;
 
             List<String> epochResults = Arrays.asList(
                     Integer.toString(epoch),
@@ -116,7 +131,7 @@ public class SudokuSolver {
 
 
     /********************************************************************************
-     * Write epoch results to CSV file
+     * Write results to CSV file.
      *******************************************************************************/
     public static void writeToCSV(String filename,List<List<String>> results) throws IOException {
 
@@ -145,12 +160,12 @@ public class SudokuSolver {
 
 
     /********************************************************************
-     * run
+     * Run the solver.
      *******************************************************************/
     public static void main(String[] args) {
 
         try {
-            evolveGenomes(4, 5000, 30, "4-output.csv");
+            evolveGenomes(3, 10000, 20, "results.csv");
         }
         catch (Exception e) {
             e.printStackTrace();

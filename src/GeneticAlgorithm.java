@@ -1,10 +1,11 @@
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Random;
 
 
 /************************************************************************************
- * A genetic algorithm
+ * A genetic algorithm for solving a sudoku puzzle.
  ***********************************************************************************/
 public class GeneticAlgorithm {
 
@@ -14,7 +15,7 @@ public class GeneticAlgorithm {
     // GA parameters
     private final int POP_SIZE = 10000;
     private final int TOURNAMENT_SIZE = 5;
-    private final int MUTATION_RATE = 80;
+    private int mutationRate = 80;
 
     // Genomes
     private ArrayList<Genome> population; // entire population of genomes
@@ -57,27 +58,22 @@ public class GeneticAlgorithm {
 
 
     /********************************************************************
-     * Evolve population.
+     * Evolve population of sudoku board genomes.
      *******************************************************************/
     public void epoch() throws Exception {
 
-        double previousBest = bestFitness;
-
-//            if (genCount % 100 == 0) {
-//                // report results
-//                System.out.println("generations: " + genCount + " best fitness: " + bestFitness);
-//            }
+        double previousBest = this.bestFitness;
 
             //reset the stat reporting variables
-            bestFitness = 0;
+            this.bestFitness = 0;
 
             // Recombination
             ArrayList<Genome> tempPop = new ArrayList<>(population); //start with existing pop
             int numChildrenToCreate = POP_SIZE / 2;
 
             while (tempPop.size() < (double) population.size() + numChildrenToCreate) {
-                ArrayList<Genome> winners = tournament(population);
-                ArrayList<Genome> children = recombination(winners);
+                ArrayList<Genome> parents = tournament(population);
+                ArrayList<Genome> children = recombination(parents);
                 tempPop.addAll(children);
             }
 
@@ -86,14 +82,19 @@ public class GeneticAlgorithm {
             if (onePercent < 1) onePercent = 1;
 
             ArrayList<Genome> theOnePercent = null;
-
             try {
                 theOnePercent = new ArrayList<>(grabNBest(onePercent, 1, tempPop));
             } catch (Exception e) {
                 e.printStackTrace();
             }
 
-            tempPop.removeAll(theOnePercent);
+            // create deep clone of the top one percent of the population
+            ArrayList<Genome> theOnePercentClones = new ArrayList<>();
+
+            Iterator<Genome> iterator = theOnePercent.iterator();
+            while(iterator.hasNext()){
+                theOnePercentClones.add((Genome) iterator.next().clone());
+            }
 
             // chose the rest of the survivors via tournament selection
             ArrayList<Genome> survivors = new ArrayList<>();
@@ -107,26 +108,29 @@ public class GeneticAlgorithm {
 
             // Randomly select some survivors to mutate
             for (Genome g : population) {
-                if (r.nextInt(101) <= MUTATION_RATE); {
+                if (r.nextInt(101) <= mutationRate); {
                     g.mutate(N);
                 }
             }
 
-            //add the top performers back in
-            population.addAll(theOnePercent);
+            // add the top performers back in
+            population.addAll(theOnePercentClones);
 
+            // sort & update best fitness values
             Collections.sort(population);
+            this.fittestGenome = population.get(0);
+            this.bestFitness = this.fittestGenome.getFitnessScore();
 
-            //calculate best, worst, average and total fitness
-            calculateBestWorstAvgTotal();
-
-            //catch errors
+            // catch errors
             if (previousBest > bestFitness) throw new Exception ("previous best: " + previousBest + " new best: "
                     + bestFitness);
 
             if (population.size() != POP_SIZE) throw new Exception("Population size: " + population.size()
                     + " Population should equal " + POP_SIZE);
 
+            if (bestFitness > 1.0) throw new Exception("Best fitness cannot be greater than 1.0");
+
+            // check if a solution has been found
             if (population.get(0).getFitnessScore() == 1) {
                 solutionFound = true;
             }
@@ -135,7 +139,8 @@ public class GeneticAlgorithm {
 
 
     /********************************************************************
-     * Tournament selection. Returns top 2.
+     * Tournament selection. Returns the 2 genomes with the highest
+     * fitness scores.
      *******************************************************************/
     private ArrayList<Genome> tournament(ArrayList<Genome> tempPop) {
 
@@ -161,8 +166,9 @@ public class GeneticAlgorithm {
 
 
     /********************************************************************
-     * Recombination helper method for creating children.
-     * Swaps units of 2 parents for 2 children.
+     * Recombination helper method for creating children genomes.
+     * Swaps units of 2 parents at a crossover point to create two
+     * new children.
      *******************************************************************/
     private ArrayList<Genome> recombination(ArrayList<Genome> parents) {
 
@@ -187,8 +193,8 @@ public class GeneticAlgorithm {
 
 
     /********************************************************************************
-     * Get N Best chromosomes. Inserts numCopies copies of the nBest most fittest
-     * genomes into a population vector.
+     * Get N Best chromosomes. Inserts numCopies copies of the nBest most fit
+     * genomes into a population ArrayList.
      ************a*******************************************************************/
     public ArrayList<Genome> grabNBest(int nBest, int numCopies,
                                     ArrayList<Genome> population) throws Exception {
@@ -223,30 +229,12 @@ public class GeneticAlgorithm {
 
 
     /********************************************************************************
-     * Calculate best, worst, average and total fitness scores
+     * Increments mutation rate by 1 if it's less than 100%.
      *******************************************************************************/
-    private void calculateBestWorstAvgTotal() {
-
-        double highestSoFar = 0;
-        double lowestSoFar = Double.MAX_VALUE;
-
-        for (Genome g : population) {
-
-            double fitness = g.getFitnessScore();
-
-            //update fittest if necessary
-            if (fitness > highestSoFar) {
-                fittestGenome = g;
-                highestSoFar = fitness;
-            }
-
-            //update worst if necessary
-            if (fitness < lowestSoFar) lowestSoFar = fitness;
-
+    public void incrementMutationRate() {
+        if (mutationRate < 100) {
+            this.mutationRate++;
         }
-
-        bestFitness	 = highestSoFar;
-
     }
 
 
@@ -264,5 +252,10 @@ public class GeneticAlgorithm {
     public boolean getSolutionFound() {
         return  solutionFound;
     }
+
+    public int getMutationRate() {
+        return mutationRate;
+    }
+
 
 }

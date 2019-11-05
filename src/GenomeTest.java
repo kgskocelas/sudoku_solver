@@ -1,10 +1,9 @@
 import org.junit.Test;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
-
 import static org.junit.Assert.assertEquals;
+
 
 public class GenomeTest {
 
@@ -40,7 +39,6 @@ public class GenomeTest {
         assertEquals(expectedKeys, actualKeys);
 
     }
-
 
     @Test
     public void testConstructChild() {
@@ -144,7 +142,6 @@ public class GenomeTest {
         assertEquals(expectedValues, actualValues);
 
     }
-
 
     @Test
     public void testCalcFitness() throws Exception {
